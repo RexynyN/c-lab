@@ -1,3 +1,16 @@
+
+
+# 
+*.png
+*.jpeg
+*.jpg
+*.ppm 
+
+
+*.db 
+
+
+
 # Prerequisites
 *.d
 
