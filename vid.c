@@ -9,32 +9,13 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#define PI 3.14159265358979323846
-
-#define CHANNEL_IDX(img, x, y, chan) (((y * img->width + x) * img->channels) + chan)
-#define PIXEL_IDX(img, x, y) ((y * img->width + x) * img->channels)
-
-
+#include "vid.h"
 
 typedef enum {
     FILTER_GRAYSCALE = 0,
     FILTER_INVERSE = 1,
     FILTER_SEPIA = 2,
 } ImageFilter;
-
-typedef struct {
-    int width; 
-    int height; 
-    int channels;
-    unsigned char* data;
-} Image; 
-
-typedef struct {
-    unsigned char* data;
-    int channels;
-} Pixel; 
-
-
 
 int str_endswith(const char* str, const char* suffix) {
     int str_len = strlen(str);
@@ -84,13 +65,6 @@ int saveImage(Image* img, char* filename) {
     printf("B\n");
     return 0; 
 }
-
-#define max(a, b) ((a) > (b) ? (a) : (b)) 
-#define min(a, b) ((a) < (b) ? (a) : (b)) 
-#define clip(v_min, value, v_max) max(v_min, min(v_max, value))
-#define clamp(idx, max_size)  max(0, min((max_size) - 1, idx))
-#define pixel_clip(value) clip(0, value, 255)
-
 
 double lanczosKernel(double x, int a) {
     if (x == 0.0) 
@@ -286,25 +260,27 @@ Image* grayscaleFilter(Image* img) {
     return img_gray;
 }
 
-int main(void) {
-    // char * path = "images/curaits-vGaAjWIODxc-unsplash.jpg";
-    char * path = "./nsfw.png";
+// #ifndef VID_NO_MAIN
+// int main(void) {
+//     // char * path = "images/curaits-vGaAjWIODxc-unsplash.jpg";
+//     char * path = "./nsfw.png";
 
-    Image* img = loadImage(path);
-    printf("Loaded image with a width of %dpx, a height of %dpx and %d channels\n", img->width, img->height, img->channels);
+//     Image* img = loadImage(path);
+//     printf("Loaded image with a width of %dpx, a height of %dpx and %d channels\n", img->width, img->height, img->channels);
 
-    float aspect = (float)img->width / img->height; 
-    float hei = (int) img->height * 3;
-    img = resizeImg(img, (int)floor(aspect * hei), hei, 3);
+//     float aspect = (float)img->width / img->height; 
+//     float hei = (int) img->height * 3;
+//     img = resizeImg(img, (int)floor(aspect * hei), hei, 3);
 
-    saveImage(img, "resized1.jpg");
+//     saveImage(img, "resized1.jpg");
 
   
-    printf("Hello2\n");
-    // saveImage(img, "test1.png");
-    printf("saveImage => returns %d\n", saveImage(inverseFilter(img), "test1.png"));
-    printf("saveImage => returns %d\n", saveImage(grayscaleFilter(img), "testg1.png"));
-    printf("saveImage => returns %d\n", saveImage(sepiaFilter(img), "testg2.png"));
+//     printf("Hello2\n");
+//     // saveImage(img, "test1.png");
+//     printf("saveImage => returns %d\n", saveImage(inverseFilter(img), "test1.png"));
+//     printf("saveImage => returns %d\n", saveImage(grayscaleFilter(img), "testg1.png"));
+//     printf("saveImage => returns %d\n", saveImage(sepiaFilter(img), "testg2.png"));
 
-    return 0;
-}
+//     return 0;
+// }
+// #endif
