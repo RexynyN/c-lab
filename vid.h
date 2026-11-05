@@ -5,6 +5,8 @@
 
 #define CHANNEL_IDX(img, x, y, chan) (((y * img->width + x) * img->channels) + chan)
 #define PIXEL_IDX(img, x, y) ((y * img->width + x) * img->channels)
+
+
 #define max(a, b) ((a) > (b) ? (a) : (b)) 
 #define min(a, b) ((a) < (b) ? (a) : (b)) 
 #define clip(v_min, value, v_max) max(v_min, min(v_max, value))
@@ -35,6 +37,6 @@ Image* loadImage(char* imgPath);
 Image* resizeImg(Image* img, int width, int height, int kernel);
 Image* sepiaFilter(Image* img);
 Image* inverseFilter(Image* img);
-Image* grayscaleFilter(Image* img);
+Image* grayscaleFilter(Image* img, int channels);
 
 #endif

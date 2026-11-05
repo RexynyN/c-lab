@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
+#include <math.h>
+
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -78,6 +79,10 @@ double lanczosKernel(double x, int a) {
 }
 
 Image* resizeImg(Image* img, int width, int height, int kernel) {
+    if (kernel <= 1) {
+        kernel = 3;
+    }
+
     int scan_a = kernel * 2; 
     unsigned char tmpPixels[scan_a * img->channels];
 
@@ -235,24 +240,32 @@ Image* inverseFilter(Image* img) {
 }
 
 
-Image* grayscaleFilter(Image* img) {
-    int grayChannels = img->channels == 4 ? 2 : 1; // 4 means there's the transparency lmao 
-    Image* img_gray = initImage(img->width, img->height, grayChannels, NULL);
+Image* grayscaleFilter(Image* img, int channels) {
+    channels = (channels != 2) ? 1 : 2; 
+    printf("Graychannels: %d\n", channels);
+    Image* img_gray = initImage(img->width, img->height, channels, NULL);
 
 
     int index = 0;
+    double rFactor = 299.0/1000; printf("rFactor: %f | ", rFactor);
+    double gFactor = 587.0/1000; printf("gFactor: %f | ", gFactor);
+    double bFactor = 114.0/1000; printf("bFactor: %f\n\n", bFactor);
     for(int y = 0; y < img->height; y++) {
         for(int x = 0; x < img->width; x++) {
             int grayIndex = PIXEL_IDX(img_gray, x, y);
-
-            unsigned char alpha = 255; // Default if not RGBA
-            if (img->channels >= 4) {
-                img_gray->data[index + 1] = img->data[index + 3];
+            
+            if (img->channels >= 4 && channels == 2) {
+                img_gray->data[grayIndex + 1] = img->data[index + 3];
             }
             
             // Grayscale
-            img_gray->data[grayIndex] = (img->data[index] + img->data[index + 1] + img->data[index + 2]) / 3;
+            double gray = (img->data[index] * rFactor) + (img->data[index + 1] * gFactor) + (img->data[index + 2] * bFactor);
+            img_gray->data[grayIndex] = (unsigned char) (gray + 0.5);
+            
+            printf(" %d ", img_gray->data[grayIndex]);
             index += img->channels;
+
+            if (index > img->width * 3) exit(69);
         }
     }
 
@@ -260,7 +273,6 @@ Image* grayscaleFilter(Image* img) {
     return img_gray;
 }
 
-// #ifndef VID_NO_MAIN
 // int main(void) {
 //     // char * path = "images/curaits-vGaAjWIODxc-unsplash.jpg";
 //     char * path = "./nsfw.png";
@@ -283,4 +295,148 @@ Image* grayscaleFilter(Image* img) {
 
 //     return 0;
 // }
-// #endif
+
+#include <fftw3.h>
+
+
+void imgFree(Image* img) {
+    free(img->data);
+    free(img);
+}
+
+
+#include <string.h>
+int compFuncDouble(const void *a, const void *b) {
+    double fa = *(const double*) a;
+    double fb = *(const double*) b;
+    if (fa < fb) return -1;
+    if (fa > fb) return 1;
+    return 0;
+}
+
+double doubleMedian(double *data, size_t size) {
+    size_t len = sizeof(double) * size; 
+    double* dummy = (double*) malloc(len);
+    if (!dummy) return 0.0;
+    
+    memcpy(dummy, data, len);
+    qsort(dummy, size, sizeof(double), compFuncDouble);
+    
+    double median = 0;
+    if (size % 2 == 0) {
+        median = (dummy[(size / 2) - 1] + dummy[size / 2]) / 2.0;
+    } else {    
+        median = dummy[size / 2]; 
+    }
+    
+    free(dummy);
+    return median; 
+}
+
+
+
+
+// Recebe o array de bits (0 ou 1) e o tamanho total (ex: 64 para 8x8, 256 para 16x16)
+char* binaryArrayToHex(const char* mask, int hashShape) {
+    // Calculamos o tamanho necessário com arredondamento para cima (ceil(size / 4))
+    int num_hex_chars = (int) (hashShape + 3) / 4;
+    
+    char* hex_out = (char*) malloc(num_hex_chars + 1); // + \0
+    if (!hex_out) return NULL;
+
+    int remainder = hashShape % 4;
+    int bit_idx = 0;
+    int hex_idx = 0;
+
+    // Se o tamanho total não for divisível por 4, o primeiro bloco pega os bits restantes
+    if (remainder != 0) {
+        int val = 0;
+        for (int i = 0; i < remainder; i++) {
+            val = (val << 1) | (mask[bit_idx++] & 1);
+        }
+        sprintf(&hex_out[hex_idx++], "%x", val);
+    }
+
+    // Processa o restante em blocos perfeitos de 4 bits
+    while (bit_idx < hashShape) {
+        int val = 0;
+        for (int i = 0; i < 4; i++) {
+            val = (val << 1) | (mask[bit_idx++] & 1);
+        }
+        sprintf(&hex_out[hex_idx++], "%x", val);
+    }
+
+    hex_out[num_hex_chars] = '\0';
+    return hex_out;
+}
+
+void phash(Image* img, int hashSize, int highFreqFactor) {
+    if (hashSize < 2) return;
+    
+    int imgSize = hashSize * highFreqFactor; 
+    int hashShape = hashSize * hashSize; 
+
+    Image* gs = grayscaleFilter(img, 1);
+    exit(69);
+
+    Image* bastard = resizeImg(gs, imgSize, imgSize, -1);
+
+    saveImage(gs, "gs.jpg");
+    saveImage(bastard, "bastard.jpg");
+
+    imgFree(gs);
+    
+    // Aloca espaço para a imagem redimensionada em double (32x32)
+    double* in = (double*) malloc(imgSize * imgSize * sizeof(double));
+    double* outImg = (double*) malloc(imgSize * imgSize * sizeof(double));
+    for(int i = 0; i < imgSize * imgSize; i++) {
+        in[i] = (double)bastard->data[i];
+    }
+
+    imgFree(bastard);
+    fftw_plan plan = fftw_plan_r2r_2d(imgSize, imgSize, in, outImg, FFTW_REDFT10, FFTW_REDFT10, FFTW_ESTIMATE);
+    
+    fftw_execute(plan);
+    fftw_destroy_plan(plan);
+    
+    double* dctlowfreq = (double*) malloc(hashShape * sizeof(double));
+
+    int index = 0;
+    printf("DCT Low Freq (Top-Left %dx%d):\n", hashSize, hashSize);
+    for(int i = 0; i < hashSize; i++) {
+        printf("[ ");
+        for(int j = 0; j < hashSize; j++) {
+            int src_index = (i * imgSize) + j; 
+            dctlowfreq[index] = outImg[src_index];
+            printf(" %f ", dctlowfreq[index]);
+            index++;
+        }        
+        printf(" ]\n");
+    }
+
+
+
+    double median = doubleMedian(dctlowfreq, hashShape); 
+    printf("\nMedian: %f\n", median);
+
+    printf("Binary Mask:\n[ ");
+    char* binaryMask = (char*) malloc(sizeof(char) * hashShape);
+    for(int i = 0; i < hashShape; i++) {
+        binaryMask[i] = (dctlowfreq[i] > median) ? 1 : 0;
+        printf(" %d ", binaryMask[i]);
+    }
+    printf(" ]\n");
+
+
+    printf("Final String: %s\n", binaryArrayToHex(binaryMask, hashShape));
+    free(in);
+    free(outImg);
+    free(dctlowfreq);
+    free(binaryMask);
+}
+
+int main() {
+    Image* img = loadImage("nsfw.png"); 
+
+    phash(img, 8, 4);
+}

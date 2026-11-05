@@ -1,33 +1,3 @@
-"""
-Perceptual image hashing library
-
-Example:
-
->>> from PIL import Image
->>> import imagehash
->>> hash = imagehash.average_hash(Image.open('test.png'))
->>> print(hash)
-d879f8f89b1bbf
->>> otherhash = imagehash.average_hash(Image.open('other.bmp'))
->>> print(otherhash)
-ffff3720200ffff
->>> print(hash == otherhash)
-False
->>> print(hash - otherhash)
-36
->>> for r in range(1, 30, 5):
-...	rothash = imagehash.average_hash(Image.open('test.png').rotate(r))
-...	print('Rotation by %d: %d Hamming difference' % (r, hash - rothash))
-...
-Rotation by 1: 2 Hamming difference
-Rotation by 6: 11 Hamming difference
-Rotation by 11: 13 Hamming difference
-Rotation by 16: 17 Hamming difference
-Rotation by 21: 19 Hamming difference
-Rotation by 26: 21 Hamming difference
->>>
-"""
-
 from __future__ import absolute_import, division, print_function
 
 import sys
@@ -80,12 +50,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 def _binary_array_to_hex(arr):
-	"""
-	internal function to make a hex string out of a binary array.
-	"""
 	bit_string = ''.join(str(b) for b in 1 * arr.flatten())
+
 	width = int(numpy.ceil(len(bit_string) / 4))
+
 	return '{:0>{width}x}'.format(int(bit_string, 2), width=width)
+
+
+
 
 
 class ImageHash:
@@ -256,26 +228,28 @@ def average_hash(image, hash_size=8, mean=numpy.mean):
 	return ImageHash(diff)
 
 
-def phash(image, hash_size=8, highfreq_factor=4):
-	# type: (Image.Image, int, int) -> ImageHash
-	"""
-	Perceptual Hash computation.
-
-	Implementation follows https://www.hackerfactor.com/blog/index.php?/archives/432-Looks-Like-It.html
-
-	@image must be a PIL instance.
-	"""
+def phash(image: Image.Image, hash_size=8, highfreq_factor=4):
 	if hash_size < 2:
 		raise ValueError('Hash size must be greater than or equal to 2')
 
 	import scipy.fftpack
+	# print(numpy.asarray(image))
+	# exit(69)
+	
 	img_size = hash_size * highfreq_factor
 	image = image.convert('L').resize((img_size, img_size), ANTIALIAS)
+	print(numpy.asarray(image.convert('L')))
+	exit(69)
 	pixels = numpy.asarray(image)
 	dct = scipy.fftpack.dct(scipy.fftpack.dct(pixels, axis=0), axis=1)
 	dctlowfreq = dct[:hash_size, :hash_size]
+	print(dctlowfreq)
+
 	med = numpy.median(dctlowfreq)
+	print(med)
+
 	diff = dctlowfreq > med
+	print(diff)
 	return ImageHash(diff)
 
 
@@ -704,3 +678,21 @@ def crop_resistant_hash(
 	if not hashes:
 		hashes.append(hash_func(orig_image))
 	return ImageMultiHash(hashes)
+
+
+
+
+if __name__ == "__main__":
+	# img = phash(Image.open("nsfw.png"))
+	# print(img)
+
+
+
+	cringe = numpy.asarray(Image.open("nsfw.png").convert("L"))
+	based = numpy.asarray(Image.open("gs.jpg").convert("L"))
+
+
+	if (cringe == based).all(): 
+		print("Based") 
+	else: 
+		print("Cringe")
